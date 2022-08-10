@@ -1,13 +1,12 @@
+from glob import glob
+
 import torch
-import sklearn.metrics as metrics
+from ignite.metrics import Precision, Recall, DiceCoefficient, ConfusionMatrix, mIoU
+
+import evaluate
+import transforms
 from data import load_data, CustomDataset
 from model import UNet
-import evaluate
-from glob import glob
-import transforms
-import numpy as np
-import torch.nn.functional as F
-from ignite.metrics import Precision, Recall, DiceCoefficient, ConfusionMatrix, mIoU
 
 
 # noinspection PyShadowingNames
@@ -52,24 +51,32 @@ def predict(model, test_loader, device):
     print('miou: {}'.format(miou.compute()))
 
 
+def plot_image(image):
+    pass
+
+
+def plot_loss_change(loss_history, include_val=True):
+    pass
+
+
 if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     batch_size = 8
     dataset = CustomDataset
-    root_path = glob('./data/membrane/test/*')
-    test_target_path = [path for path in root_path if path.find('predict') != -1]
-    test_image_path = [path for path in root_path if path.find('predict') == -1]
+    test_image_path = glob('./dataset/test/images/*')
+    test_mask_path = glob('./dataset/test/masks/*')
+
     input_transforms = transforms.Compose([
         transforms.ToPILImage(),
         transforms.Resize(256),
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
-    test_loader = load_data(data_path=test_image_path, target_path=test_target_path,
-                            batch_size=1, drop_last=False,
+    test_loader = load_data(data_path=test_image_path, target_path=test_mask_path,
+                            batch_size=32, drop_last=False,
                             transforms=input_transforms)
     model = UNet()
-    trained_params = torch.load('./params/best_model2.pth', map_location=device)
+    trained_params = torch.load('./pretrained/best_model2.pth', map_location=device)
     model.load_state_dict(trained_params['best_model_state_dict'])
     model.eval()
 
