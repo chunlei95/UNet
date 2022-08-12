@@ -5,8 +5,9 @@ from ignite.metrics import Precision, Recall, DiceCoefficient, ConfusionMatrix, 
 
 import evaluate
 import transforms
-from data import load_data, CustomDataset
+from data import load_data
 from model import UNet
+import matplotlib.pyplot as plt
 
 
 # noinspection PyShadowingNames
@@ -51,18 +52,26 @@ def predict(model, test_loader, device):
     print('miou: {}'.format(miou.compute()))
 
 
-def plot_image(image):
-    pass
+def plot_image(images, nrow, ncol):
+    figure, axes = plt.subplots(nrow, ncol)
+    for image in images:
+        plt.axis('off')
+        axes.imshow(image)
 
 
-def plot_loss_change(loss_history, include_val=True):
-    pass
+def plot_loss_change(train_losses, val_losses=None):
+    figure, axes = plt.subplots()
+    plt.plot(range(len(train_losses)), train_losses)
+    if val_losses is not None:
+        plt.plot(range(len(val_losses)), val_losses)
+        plt.legend(['train loss', 'val loss'])
+    plt.xlabel('epoch')
+    plt.ylabel('loss value')
+    plt.show()
 
 
 if __name__ == '__main__':
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    batch_size = 8
-    dataset = CustomDataset
     test_image_path = glob('./dataset/test/images/*')
     test_mask_path = glob('./dataset/test/masks/*')
 
@@ -72,12 +81,17 @@ if __name__ == '__main__':
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
+
     test_loader = load_data(data_path=test_image_path, target_path=test_mask_path,
                             batch_size=32, drop_last=False,
                             transforms=input_transforms)
     model = UNet()
-    trained_params = torch.load('./pretrained/best_model2.pth', map_location=device)
+    trained_params = torch.load('./pretrained/version_5/best_model.pth', map_location=device)
+    loss_change_history = torch.load('./pretrained/version_5/loss_change.pth', map_location=device)
     model.load_state_dict(trained_params['best_model_state_dict'])
     model.eval()
 
     predict(model, test_loader, device)
+    train_loss = loss_change_history['train_loss_change_history']
+    val_loss = loss_change_history['valid_loss_change_history']
+    plot_loss_change(train_loss, val_loss)

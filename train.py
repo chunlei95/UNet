@@ -127,15 +127,17 @@ if __name__ == '__main__':
     target_path = [path for path in root_path if path.find('mask') != -1]
     train_transforms = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.RandomCrop(256),
         transforms.RandomHorizontalFlip(),
         # transforms.ColorJitter(),  # 这个貌似有问题
         # transforms.GrayScale(),  # 这个貌似也有问题
         transforms.RandomRotation(degrees=(0, 180)),
+        transforms.RandomCrop(256),
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
     valid_transforms = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize(256),
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
