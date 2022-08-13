@@ -84,7 +84,7 @@ if __name__ == '__main__':
                             batch_size=32, drop_last=False,
                             transforms=input_transforms)
     model = UNet()
-    trained_params = torch.load('./pretrained/best_model2.pth', map_location=device)
+    trained_params = torch.load('./pretrained/best_model.pth', map_location=device)
     model.load_state_dict(trained_params['best_model_state_dict'])
     model.eval()
 
