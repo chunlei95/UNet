@@ -7,6 +7,7 @@ import evaluate
 import transforms
 from data import load_data, CustomDataset
 from model import UNet
+import matplotlib.pyplot as plt
 
 
 # noinspection PyShadowingNames
@@ -55,8 +56,15 @@ def plot_image(image):
     pass
 
 
-def plot_loss_change(loss_history, include_val=True):
-    pass
+def plot_loss_change(train_losses, val_losses=None):
+    figure, axes = plt.subplots()
+    plt.plot(range(len(train_losses)), train_losses)
+    if val_losses is not None:
+        plt.plot(range(len(val_losses)), val_losses)
+        plt.legend(['train loss', 'val loss'])
+    plt.xlabel('epoch')
+    plt.ylabel('loss value')
+    plt.show()
 
 
 if __name__ == '__main__':
