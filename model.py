@@ -26,7 +26,7 @@ class UNet(nn.Module):
         self.db4 = DecoderBlock(128, 64, 64)
         # 一个Conv 1 * 1, 二分类，结果为两个通道
         self.conv1x1 = nn.Conv2d(64, 2, kernel_size=1)
-        self.sigmoid = nn.Sigmoid()
+        # self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         ex1, skip_x1 = self.eb1(x)
@@ -40,7 +40,8 @@ class UNet(nn.Module):
         dx4 = self.db4(dx3, skip_x1)
         crop = transforms.CenterCrop(size=(x.shape[-1], x.shape[-2]))
         # normalize = transforms.Normalize((0.5,), (0.5,))
-        return self.sigmoid(self.conv1x1(crop(dx4)))
+        # return self.sigmoid(self.conv1x1(crop(dx4)))
+        return self.conv1x1(crop(dx4))
 
 
 class ConvBlock(nn.Module):

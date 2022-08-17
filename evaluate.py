@@ -22,7 +22,7 @@ def dice_coef(predict, target, ep=1e-8):
     用于相似性评估
 
     :param ep: 平滑系数
-    :param predict: 预测值
+    :param predict: 预测值(类别，非概率)
     :param target: 目标值
     :return: 相似系数
     """

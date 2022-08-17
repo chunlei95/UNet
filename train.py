@@ -1,16 +1,15 @@
-import random
 from argparse import ArgumentParser
 from glob import glob
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import numpy as np
 
 import transforms
-from data import CustomDataset, load_data
+from data import load_data
+from loss import DiceLoss
 from model import UNet
+import torch.nn as nn
 
 args_parser = ArgumentParser()
 args_parser.add_argument('-lr', type=float, default=1e-4)
@@ -41,7 +40,11 @@ def train(train_loader, valid_loader, model, criterion, optimizer, total_epoch, 
             y_onehot = convert_to_one_hot(y, num_classes=num_classes)
             predict = model(x)
 
-            loss_value = criterion(predict, y_onehot)
+            # predict_mask = torch.max(predict, dim=1)[1].to(torch.float32)
+            # y = y.to(torch.float32)
+
+            loss_value = criterion(predict, y)
+            loss_value.requires_grad_(True)
             optimizer.zero_grad()
             loss_value.backward()
             optimizer.step()
@@ -109,48 +112,62 @@ def valid(model, criterion, valid_loader, num_classes, device):
     for index, (x, y) in enumerate(valid_loader):
         x = x.to(device)
         y = y.to(device)
-        y_onehot = convert_to_one_hot(y, num_classes)
+        # y_onehot = convert_to_one_hot(y, num_classes)
         with torch.no_grad():
             predict = model(x)
-            valid_loss = criterion(predict, y_onehot)
+            valid_loss = criterion(predict, y)
             valid_total_loss += valid_loss.item()
     return valid_total_loss / len(valid_loader)
 
 
 if __name__ == '__main__':
+    lr = 3e-4
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = UNet()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.5, 0.999))
-    criterion = nn.BCELoss()
-    root_path = glob('./data/membrane/train/aug/*')
-    image_path = [path for path in root_path if path.find('image') != -1]
-    target_path = [path for path in root_path if path.find('mask') != -1]
+    model = UNet().to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+
+    # 后面修改为Dice损失函数看看效果
+    criterion = nn.CrossEntropyLoss()
+
+    train_image_path = glob('./dataset/train/images/*')
+    train_mask_path = glob('./dataset/train/masks/*')
+
+    val_image_path = glob('./dataset/val/images/*')
+    val_mask_path = glob('./dataset/val/masks/*')
+
     train_transforms = transforms.Compose([
+        # todo 先Resize试一下
         transforms.ToPILImage(),
-        transforms.RandomCrop(256),
         transforms.RandomHorizontalFlip(),
-        # transforms.ColorJitter(),  # 这个貌似有问题
-        # transforms.GrayScale(),  # 这个貌似也有问题
         transforms.RandomRotation(degrees=(0, 180)),
+        #         ColorJitter(), # 这个有问题，但是是什么问题？
+        #         GrayScale(), # 这个貌似也有问题，问题更大
+        transforms.RandomCrop(256),
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
     valid_transforms = transforms.Compose([
+        # transforms.ToPILImage(),
+        # transforms.Resize(256),
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
-    data_length = len(image_path)
-    validation_size = int(data_length * 0.2)
-    np.random.seed(42)
-    np.random.shuffle(image_path)
-    np.random.shuffle(target_path)
-    train_image_path = image_path[:data_length - validation_size]
-    train_mask_path = target_path[:data_length - validation_size]
-    valid_image_path = image_path[data_length - validation_size:]
-    valid_mask_path = target_path[data_length - validation_size:]
 
-    train_loader = load_data(train_image_path, train_mask_path, batch_size=2, drop_last=True,
+    train_loader = load_data(train_image_path, train_mask_path, batch_size=16, drop_last=True,
                              transforms=train_transforms)
-    valid_loader = load_data(valid_image_path, valid_mask_path, batch_size=2, transforms=valid_transforms)
+    valid_loader = load_data(val_image_path, val_mask_path, batch_size=16, transforms=valid_transforms)
 
-    train(train_loader, valid_loader, model, criterion, optimizer, args.epoch, device=device)
+    continue_train = False
+
+    if not continue_train:
+        epoch = 180
+        train(train_loader, valid_loader, model, criterion, optimizer, epoch, device=device)
+    else:
+        total_epoch = 200
+        pretrain_params = torch.load('../input/covid-xray-unet/last_model.pth')
+        model.load_state_dict(pretrain_params['last_model_state_dict'])
+        optimizer.load_state_dict(pretrain_params['last_optimizer_state_dict'])
+        current_epoch = pretrain_params['epoch']
+        model.train()
+        train(train_loader, valid_loader, model, criterion, optimizer, total_epoch, current_epoch, device=device)

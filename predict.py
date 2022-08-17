@@ -84,8 +84,14 @@ if __name__ == '__main__':
                             batch_size=32, drop_last=False,
                             transforms=input_transforms)
     model = UNet()
-    trained_params = torch.load('./pretrained/best_model.pth', map_location=device)
+    trained_params = torch.load('./pretrained/v1/best_model.pth', map_location=device)
+    loss_change = torch.load('./pretrained/v1/loss_change.pth', map_location=device)
+
     model.load_state_dict(trained_params['best_model_state_dict'])
     model.eval()
 
     predict(model, test_loader, device)
+
+    train_loss = loss_change['train_loss_change_history']
+    val_loss = loss_change['valid_loss_change_history']
+    plot_loss_change(train_loss, val_loss)
